@@ -102,7 +102,8 @@ class ParseUploadJob implements ShouldQueue
     {
         if (!$val) return null;
         try {
-            return Carbon::parse($val, 'Asia/Jakarta');
+            // Parse as Asia/Jakarta from source, then normalize to UTC for storage
+            return Carbon::parse($val, 'Asia/Jakarta')->setTimezone('UTC');
         } catch (\Throwable $e) { return null; }
     }
 
