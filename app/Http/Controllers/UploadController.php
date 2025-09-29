@@ -29,7 +29,7 @@ class UploadController extends Controller
     {
         $data = $request->validate([
             'file' => 'required|file|mimes:xlsx,xls',
-            'kind' => 'required|in:resolved,actual_end',
+            'kind' => 'required|in:resolved,actual_end,ticket_eval',
             'for_month' => 'required|date',
         ]);
 

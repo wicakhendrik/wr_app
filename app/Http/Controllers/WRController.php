@@ -20,9 +20,19 @@ class WRController extends Controller
         $signatureDate = Carbon::parse($payload['signature_date'])->startOfDay();
         $templateId = $payload['template_id'] ?? null;
 
-        $xlsxPath = $service->buildMonthlyWR($month, $signatureDate, $request->user()->id, $templateId);
+        $spread = $service->createMonthlyWRSpreadsheet($month, $signatureDate, $request->user()->id, $templateId);
 
-        return response()->download($xlsxPath)->deleteFileAfterSend(false);
+        $userName = (string) ($request->user()?->name ?? 'User');
+        // Nama file: WR {Nama User} - {Bulan} {Tahun}.xlsx
+        $labelMonth = $month->copy()->locale('id')->translatedFormat('F Y');
+        $fileName = sprintf('WR %s - %s.xlsx', $userName, $labelMonth);
+
+        return response()->streamDownload(function () use ($spread) {
+            $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spread);
+            $writer->save('php://output');
+        }, $fileName, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
     }
 }
 

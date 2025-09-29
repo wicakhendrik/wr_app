@@ -54,6 +54,40 @@ class WRService
 
     private array $templatePageBreakRows = [34, 73, 115, 150, 174, 206];
 
+    /**
+     * Build monthly WR and return a Spreadsheet instance without writing to disk.
+     */
+    public function createMonthlyWRSpreadsheet(Carbon $month, Carbon $signatureDate, int $userId, ?int $templateId = null): Spreadsheet
+    {
+        $start = $month->copy()->startOfMonth();
+        $end   = $month->copy()->endOfMonth();
+
+        $signatureLabel = 'Gresik, ' . $signatureDate->copy()->locale('id')->translatedFormat('d F Y');
+        $user = User::find($userId);
+
+        $tickets = Ticket::whereBetween('resolved_at_src', [$start, $end->copy()->endOfDay()])
+            ->whereHas('upload', fn($query) => $query->where('user_id', $userId)->where('kind','resolved'))
+            ->get();
+        $ticketsEval = Ticket::whereBetween('created_at_src', [$start, $end->copy()->endOfDay()])
+            ->whereHas('upload', fn($query) => $query->where('user_id', $userId)->where('kind','ticket_eval'))
+            ->get();
+        $tasks   = Task::whereBetween('actual_end_at_src', [$start, $end->copy()->endOfDay()])
+            ->whereHas('upload', fn($query) => $query->where('user_id', $userId))
+            ->get();
+        $manualActivities = ManualActivity::where('user_id', $userId)
+            ->whereBetween('activity_date', [$start->toDateString(), $end->toDateString()])
+            ->get();
+        $repetitives = RepetitiveActivity::where('user_id', $userId)
+            ->orderBy('start_time')
+            ->get();
+        $holidays = Holiday::whereBetween('date', [$start->toDateString(), $end->toDateString()])->pluck('date')->all();
+
+        $spread = $this->buildUsingTemplate($start, $end, $tickets, $ticketsEval, $tasks, $manualActivities, $repetitives, $holidays, $signatureLabel, $user)
+            ?? $this->buildFallbackSheet($start, $end, $tickets, $ticketsEval, $tasks, $manualActivities, $repetitives, $holidays, $signatureLabel, $user);
+
+        return $spread;
+    }
+
     public function buildMonthlyWR(Carbon $month, Carbon $signatureDate, int $userId, ?int $templateId = null): string
     {
         $start = $month->copy()->startOfMonth();
@@ -89,6 +123,7 @@ class WRService
         Carbon $start,
         Carbon $end,
         $tickets,
+        $ticketsEval,
         $tasks,
         $manualActivities,
         $repetitives,
@@ -171,6 +206,14 @@ class WRService
                 return $ticket->resolved_at_src
                     && $ticket->resolved_at_src->copy()->setTimezone('Asia/Jakarta')->isSameDay($date);
             });
+            $dayTicketsEval = $ticketsEval->filter(function ($ticket) use ($date) {
+                return $ticket->created_at_src
+                    && $ticket->created_at_src->copy()->setTimezone('Asia/Jakarta')->isSameDay($date);
+            });
+            $dayTicketsEval = $ticketsEval->filter(function ($ticket) use ($date) {
+                return $ticket->created_at_src
+                    && $ticket->created_at_src->copy()->setTimezone('Asia/Jakarta')->isSameDay($date);
+            });
 
             $dayTasks = $tasks->filter(function ($task) use ($date) {
                 return $task->actual_end_at_src
@@ -242,9 +285,25 @@ class WRService
 
 
                 foreach ($dayTickets as $ticket) {
-                    $slot = $this->determineSlotIndex($ticket->resolved_at_src, $slots);
-                    if ($slot !== $slotIdx) {
-                        continue;
+                    $type = trim((string) ($ticket->request_type ?? ''));
+                    $placed = false;
+                    if (strcasecmp($type, 'Incident') === 0 && $ticket->created_at_src && $ticket->resolved_at_src) {
+                        $created = $ticket->created_at_src->copy()->setTimezone('Asia/Jakarta');
+                        $resolved= $ticket->resolved_at_src->copy()->setTimezone('Asia/Jakarta');
+                        if ($created->isSameDay($date) && $resolved->isSameDay($date)) {
+                            $slotStart = $slots[$slotIdx][0];
+                            $slotEnd   = $slots[$slotIdx][1];
+                            if ($this->timesOverlap($created->format('H:i'), $resolved->format('H:i'), $slotStart, $slotEnd)) {
+                                $placed = true;
+                            }
+                        }
+                    }
+
+                    if (!$placed) {
+                        $slot = $this->determineSlotIndex($ticket->resolved_at_src, $slots);
+                        if ($slot !== $slotIdx) {
+                            continue;
+                        }
                     }
 
                     $detailLines[] = sprintf(
@@ -259,6 +318,15 @@ class WRService
                         $ticket->request_type ?? '-',
                         $ticket->subject ?? '-'
                     );
+                }
+
+                foreach ($dayTicketsEval as $ticket) {
+                    $slot = $this->determineSlotIndex($ticket->created_at_src, $slots);
+                    if ($slot !== $slotIdx) {
+                        continue;
+                    }
+                    $detailLines[] = sprintf(' - Evaluasi Tiket %s : %s', $ticket->request_id ?? '-', $ticket->subject ?? '-');
+                    $outputLines[] = sprintf(' - Tiket %s menjadi terevaluasi', $ticket->request_id ?? '-');
                 }
 
                 foreach ($dayTasks as $task) {
@@ -294,8 +362,7 @@ class WRService
                     }
 
                     $title = trim((string) ($activity->title ?? '-'));
-                    $timeRange = sprintf('%s-%s', $this->formatClock($activity->start_time), $this->formatClock($activity->end_time));
-                    $detailLines[] = sprintf(' - %s (%s)', $title ?: '-', $timeRange);
+                    $detailLines[] = sprintf(' - %s', $title ?: '-');
 
                     $output = trim((string) ($activity->output ?? ''));
                     if ($output !== '') {
@@ -337,6 +404,7 @@ class WRService
         Carbon $start,
         Carbon $end,
         $tickets,
+        $ticketsEval,
         $tasks,
         $manualActivities,
         $repetitives,
@@ -480,9 +548,25 @@ class WRService
 
 
                 foreach ($dayTickets as $ticket) {
-                    $slot = $this->determineSlotIndex($ticket->resolved_at_src, $slots);
-                    if ($slot !== $slotIdx) {
-                        continue;
+                    $type = trim((string) ($ticket->request_type ?? ''));
+                    $placed = false;
+                    if (strcasecmp($type, 'Incident') === 0 && $ticket->created_at_src && $ticket->resolved_at_src) {
+                        $created = $ticket->created_at_src->copy()->setTimezone('Asia/Jakarta');
+                        $resolved= $ticket->resolved_at_src->copy()->setTimezone('Asia/Jakarta');
+                        if ($created->isSameDay($date) && $resolved->isSameDay($date)) {
+                            $slotStart = $slots[$slotIdx][0];
+                            $slotEnd   = $slots[$slotIdx][1];
+                            if ($this->timesOverlap($created->format('H:i'), $resolved->format('H:i'), $slotStart, $slotEnd)) {
+                                $placed = true;
+                            }
+                        }
+                    }
+
+                    if (!$placed) {
+                        $slot = $this->determineSlotIndex($ticket->resolved_at_src, $slots);
+                        if ($slot !== $slotIdx) {
+                            continue;
+                        }
                     }
 
                     $detailLines[] = sprintf(
@@ -497,6 +581,15 @@ class WRService
                         $ticket->request_type ?? '-',
                         $ticket->subject ?? '-'
                     );
+                }
+
+                foreach ($dayTicketsEval as $ticket) {
+                    $slot = $this->determineSlotIndex($ticket->created_at_src, $slots);
+                    if ($slot !== $slotIdx) {
+                        continue;
+                    }
+                    $detailLines[] = sprintf(' - Evaluasi Tiket %s : %s', $ticket->request_id ?? '-', $ticket->subject ?? '-');
+                    $outputLines[] = sprintf(' - Tiket %s menjadi terevaluasi', $ticket->request_id ?? '-');
                 }
 
                 foreach ($dayTasks as $task) {
@@ -532,8 +625,7 @@ class WRService
                     }
 
                     $title = trim((string) ($activity->title ?? '-'));
-                    $timeRange = sprintf('%s-%s', $this->formatClock($activity->start_time), $this->formatClock($activity->end_time));
-                    $detailLines[] = sprintf(' - %s (%s)', $title ?: '-', $timeRange);
+                    $detailLines[] = sprintf(' - %s', $title ?: '-');
 
                     $output = trim((string) ($activity->output ?? ''));
                     if ($output !== '') {

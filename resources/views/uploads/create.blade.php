@@ -50,6 +50,7 @@
                     <label class="block text-sm font-semibold text-slate-700">Jenis Dataset</label>
                     <select name="kind" class="mt-2 w-full rounded-xl border border-sky-200 bg-white px-3 py-2 text-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-300" required>
                         <option value="resolved">Ticket (Resolved)</option>
+                        <option value="ticket_eval">Ticket (Created at/Done Evaluation)</option>
                         <option value="actual_end">Task (Actual End)</option>
                     </select>
                     @error('kind')<div class="mt-2 text-sm text-rose-600">{{ $message }}</div>@enderror

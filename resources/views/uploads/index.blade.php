@@ -118,7 +118,7 @@
                 <h2 class="text-2xl font-semibold">Generate Dokumen WR</h2>
                 <p class="mt-2 text-sky-100">Pilih bulan yang ingin dirangkum. Sistem akan menggabungkan data Ticket & Task dalam format WR siap unduh.</p>
             </div>
-            <form method="POST" action="{{ route('wr.generate') }}" class="w-full max-w-2xl grid gap-4 sm:grid-cols-2 lg:grid-cols-3 items-end bg-white/10 backdrop-blur rounded-2xl px-5 py-4">
+            <form id="wr-generate-form" method="POST" action="{{ route('wr.generate') }}" target="wr-download-frame" class="w-full max-w-2xl grid gap-4 sm:grid-cols-2 lg:grid-cols-3 items-end bg-white/10 backdrop-blur rounded-2xl px-5 py-4">
                 @csrf
                 <div class="sm:col-span-1">
                     <label class="block text-sm font-medium text-white/90">Untuk Bulan</label>
@@ -129,7 +129,7 @@
                     <input type="date" name="signature_date" value="{{ old('signature_date', now()->toDateString()) }}" class="mt-1 w-full rounded-xl border-none bg-white/80 px-3 py-2 text-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-300" required />
                 </div>
                 <div class="sm:col-span-2 lg:col-span-1 flex sm:justify-end items-end">
-                    <button class="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-xl bg-white text-sky-600 font-semibold px-5 py-2.5 shadow-lg shadow-sky-900/20 hover:bg-slate-100 transition">
+                    <button id="wr-generate-btn" class="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-xl bg-white text-sky-600 font-semibold px-5 py-2.5 shadow-lg shadow-sky-900/20 hover:bg-slate-100 transition">
                         <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0 5-5m-5 5V4" />
                         </svg>
@@ -137,7 +137,48 @@
                     </button>
                 </div>
             </form>
+            <iframe name="wr-download-frame" class="hidden"></iframe>
+            <div id="wr-progress" class="mt-4 hidden">
+                <div class="w-full h-2 rounded-full bg-white/20 overflow-hidden">
+                    <div class="h-full w-1/3 rounded-full bg-white/80 animate-pulse" style="animation: wrbar 1.2s infinite"></div>
+                </div>
+                <p class="mt-2 text-sm text-white/90">Sedang menyiapkan file WR, mohon tunggu…</p>
+                <style>
+                    @keyframes wrbar { 0%{transform:translateX(-100%)} 50%{transform:translateX(100%)} 100%{transform:translateX(300%)} }
+                </style>
+            </div>
         </div>
     </section>
 </div>
+<script>
+    (function(){
+        const form = document.getElementById('wr-generate-form');
+        const btn = document.getElementById('wr-generate-btn');
+        const progress = document.getElementById('wr-progress');
+        const iframe = document.getElementsByName('wr-download-frame')[0];
+        if(!form || !btn || !iframe) return;
+
+        const setLoading = (state) => {
+            if(state){
+                btn.disabled = true;
+                btn.classList.add('opacity-60','cursor-not-allowed');
+                progress?.classList.remove('hidden');
+            } else {
+                btn.disabled = false;
+                btn.classList.remove('opacity-60','cursor-not-allowed');
+                progress?.classList.add('hidden');
+            }
+        };
+
+        form.addEventListener('submit', () => {
+            setLoading(true);
+            // Fallback auto-enable after 45s if no load event (very large files)
+            setTimeout(() => setLoading(false), 45000);
+        });
+
+        iframe.addEventListener('load', () => {
+            setLoading(false);
+        });
+    })();
+</script>
 </x-app-layout>

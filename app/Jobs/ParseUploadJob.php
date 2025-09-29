@@ -41,6 +41,9 @@ class ParseUploadJob implements ShouldQueue
             if ($upload->kind === 'resolved' && str_contains($line,'created') && str_contains($line,'resolved') && str_contains($line,'request type')) {
                 $headerRow = $i; break;
             }
+            if ($upload->kind === 'ticket_eval' && str_contains($line,'created') && str_contains($line,'request id')) {
+                $headerRow = $i; break;
+            }
             if ($upload->kind === 'actual_end' && str_contains($line,'task id') && str_contains($line,'actual end')) {
                 $headerRow = $i; break;
             }
@@ -58,14 +61,19 @@ class ParseUploadJob implements ShouldQueue
             $r = $rows[$i] ?? null;
             if (!$r) continue;
 
-            if ($upload->kind === 'resolved') {
+            if ($upload->kind === 'resolved' || $upload->kind === 'ticket_eval') {
                 $created = $r[$map['created time'] ?? ''] ?? null;
                 $resolved= $r[$map['resolved time'] ?? ''] ?? null;
                 $rtype   = $r[$map['request type'] ?? ''] ?? null;
                 $rid     = $r[$map['request id'] ?? ''] ?? null;
                 $subj    = $r[$map['subject'] ?? ''] ?? null;
 
-                if (!$resolved && !$rtype && !$rid && !$subj) continue;
+                if ($upload->kind === 'resolved') {
+                    if (!$resolved && !$rtype && !$rid && !$subj) continue;
+                } else {
+                    // ticket_eval minimal created + request id or subject
+                    if (!$created && !$rid && !$subj) continue;
+                }
 
                 Ticket::create([
                     'upload_id' => $upload->id,
@@ -113,5 +121,4 @@ class ParseUploadJob implements ShouldQueue
         return ($s==='' || strtolower($s)==='null') ? null : $s;
     }
 }
-
 

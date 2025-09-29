@@ -29,6 +29,7 @@ class Upload extends Model
     {
         return match ($this->kind) {
             'resolved' => 'TICKET',
+            'ticket_eval' => 'TICKET (EVALUASI)',
             'actual_end' => 'TASK',
             default => strtoupper($this->kind ?? '-')
         };
