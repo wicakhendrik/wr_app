@@ -410,7 +410,9 @@ class WRService
             $rowCursor += $slotCount;
         }
 
-        $this->configurePageSetup($sheet, $rowCursor - 1);
+        // Configure page breaks: 7 hari per halaman
+        $daysCount = $start->diffInDays($end) + 1;
+        $this->configurePageSetup($sheet, $startRow, $daysCount, $slotCount, 7);
 
         return $spread;
     }
@@ -484,6 +486,7 @@ class WRService
         $row++;
 
         $slotCount = count($this->defaultSlots);
+        $firstDayTopRow = $row; // remember where the first day starts
 
         for ($date = $start->copy(); $date->lte($end); $date->addDay()) {
             $isWeekend = in_array($date->dayOfWeekIso, [6, 7], true);
@@ -687,7 +690,10 @@ class WRService
             $row = $dayTopRow + $slotCount;
         }
 
-        $this->configurePageSetup($sheet, $row - 1);
+        // Configure page breaks untuk fallback: 7 hari per halaman
+        $daysCount = $start->diffInDays($end) + 1;
+        $firstDayTopRow = $row; // sebelum loop hari dimulai
+        $this->configurePageSetup($sheet, $firstDayTopRow, $daysCount, $slotCount, 7);
 
         return $spread;
     }
@@ -891,7 +897,7 @@ class WRService
         $sheet->setCellValue('F233', $label);
     }
 
-    private function configurePageSetup(Worksheet $sheet, int $lastDataRow): void
+    private function configurePageSetup(Worksheet $sheet, int $firstDataRow, int $daysCount, int $slotCount, int $daysPerPage = 5): void
     {
         $pageSetup = $sheet->getPageSetup();
         $pageSetup->setOrientation(PageSetup::ORIENTATION_PORTRAIT);
@@ -903,9 +909,12 @@ class WRService
             $sheet->setBreak($coord, Worksheet::BREAK_NONE);
         }
 
-        foreach ($this->templatePageBreakRows as $row) {
-            if ($row <= $lastDataRow) {
-                $sheet->setBreak('A' . $row, Worksheet::BREAK_ROW);
+        $lastDataRow = $firstDataRow + ($daysCount * $slotCount) - 1;
+        if ($daysPerPage < 1) { $daysPerPage = 5; }
+        for ($breakDay = $daysPerPage; $breakDay < $daysCount; $breakDay += $daysPerPage) {
+            $breakRow = $firstDataRow + ($breakDay * $slotCount) - 1;
+            if ($breakRow <= $lastDataRow) {
+                $sheet->setBreak('A' . $breakRow, Worksheet::BREAK_ROW);
             }
         }
     }
