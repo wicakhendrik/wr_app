@@ -330,27 +330,42 @@ class WRService
                 }
 
                 foreach ($dayTasks as $task) {
-                    $slot = $this->determineSlotIndex($task->actual_end_at_src, $slots);
-                    if ($slot !== $slotIdx) {
-                        continue;
+                    $placed = false;
+                    if ($task->actual_start_at_src && $task->actual_end_at_src) {
+                        $startTs = $task->actual_start_at_src->copy()->setTimezone('Asia/Jakarta');
+                        $endTs   = $task->actual_end_at_src->copy()->setTimezone('Asia/Jakarta');
+                        if ($startTs->isSameDay($date) && $endTs->isSameDay($date)) {
+                            $slotStart = $slots[$slotIdx][0];
+                            $slotEnd   = $slots[$slotIdx][1];
+                            if ($this->timesOverlap($startTs->format('H:i'), $endTs->format('H:i'), $slotStart, $slotEnd)) {
+                                $placed = true;
+                            }
+                        }
+                    }
+                    if (!$placed) {
+                        $slot = $this->determineSlotIndex($task->actual_end_at_src, $slots);
+                        if ($slot !== $slotIdx) {
+                            continue;
+                        }
                     }
 
-                    $atas = $task->request_id
-                        ? "Request ID {$task->request_id}"
-                        : ($task->problem_id
-                            ? "Problem ID {$task->problem_id}"
-                            : ($task->change_id ? "Change ID {$task->change_id}" : 'Request ID -'));
+                    $typeLabel = $task->request_id ? 'Request ID' : ($task->problem_id ? 'Problem ID' : ($task->change_id ? 'Change ID' : 'Request ID'));
+                    $typeId    = $task->request_id ?: ($task->problem_id ?: ($task->change_id ?: '-'));
+                    $typeTitle = $task->request_title ?: ($task->problem_title ?: ($task->change_title ?: '-'));
 
                     $detailLines[] = sprintf(
-                        ' - Mengerjakan Task ID (%s) atas %s : %s',
+                        ' - Mengerjakan Task ID (%s) ID : %s atas %s %s : %s',
                         $task->task_id ?? '-',
-                        $atas,
-                        $task->title ?? '-'
+                        $task->title ?? '-',
+                        $typeLabel,
+                        $typeId,
+                        $typeTitle
                     );
                     $outputLines[] = sprintf(
-                        ' - Task ID %s atas %s terselesaikan: %s',
+                        ' - Task ID %s atas %s %s terselesaikan: %s',
                         $task->task_id ?? '-',
-                        $atas,
+                        $typeLabel,
+                        $typeId,
                         $task->title ?? '-'
                     );
                 }
@@ -593,27 +608,42 @@ class WRService
                 }
 
                 foreach ($dayTasks as $task) {
-                    $slot = $this->determineSlotIndex($task->actual_end_at_src, $slots);
-                    if ($slot !== $slotIdx) {
-                        continue;
+                    $placed = false;
+                    if ($task->actual_start_at_src && $task->actual_end_at_src) {
+                        $startTs = $task->actual_start_at_src->copy()->setTimezone('Asia/Jakarta');
+                        $endTs   = $task->actual_end_at_src->copy()->setTimezone('Asia/Jakarta');
+                        if ($startTs->isSameDay($date) && $endTs->isSameDay($date)) {
+                            $slotStart = $slots[$slotIdx][0];
+                            $slotEnd   = $slots[$slotIdx][1];
+                            if ($this->timesOverlap($startTs->format('H:i'), $endTs->format('H:i'), $slotStart, $slotEnd)) {
+                                $placed = true;
+                            }
+                        }
+                    }
+                    if (!$placed) {
+                        $slot = $this->determineSlotIndex($task->actual_end_at_src, $slots);
+                        if ($slot !== $slotIdx) {
+                            continue;
+                        }
                     }
 
-                    $atas = $task->request_id
-                        ? "Request ID {$task->request_id}"
-                        : ($task->problem_id
-                            ? "Problem ID {$task->problem_id}"
-                            : ($task->change_id ? "Change ID {$task->change_id}" : 'Request ID -'));
+                    $typeLabel = $task->request_id ? 'Request ID' : ($task->problem_id ? 'Problem ID' : ($task->change_id ? 'Change ID' : 'Request ID'));
+                    $typeId    = $task->request_id ?: ($task->problem_id ?: ($task->change_id ?: '-'));
+                    $typeTitle = $task->request_title ?: ($task->problem_title ?: ($task->change_title ?: '-'));
 
                     $detailLines[] = sprintf(
-                        ' - Mengerjakan Task ID (%s) atas %s : %s',
+                        ' - Mengerjakan Task ID (%s) ID : %s atas %s %s : %s',
                         $task->task_id ?? '-',
-                        $atas,
-                        $task->title ?? '-'
+                        $task->title ?? '-',
+                        $typeLabel,
+                        $typeId,
+                        $typeTitle
                     );
                     $outputLines[] = sprintf(
-                        ' - Task ID %s atas %s terselesaikan: %s',
+                        ' - Task ID %s atas %s %s terselesaikan: %s',
                         $task->task_id ?? '-',
-                        $atas,
+                        $typeLabel,
+                        $typeId,
                         $task->title ?? '-'
                     );
                 }

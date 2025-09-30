@@ -89,7 +89,11 @@ class ParseUploadJob implements ShouldQueue
                 $pid  = $r[$map['problem id'] ?? ''] ?? null;
                 $cid  = $r[$map['change id'] ?? ''] ?? null;
                 $title= $r[$map['title'] ?? ''] ?? null;
+                $start= $r[$map['actual start time'] ?? ''] ?? null;
                 $end  = $r[$map['actual end time'] ?? ''] ?? null;
+                $rtitle = $r[$map['request title'] ?? ''] ?? null;
+                $ptitle = $r[$map['problem title'] ?? ''] ?? null;
+                $ctitle = $r[$map['change title'] ?? ''] ?? null;
 
                 if (!$end && !$tid && !$title) continue;
 
@@ -100,7 +104,11 @@ class ParseUploadJob implements ShouldQueue
                     'problem_id'=> $this->nz($pid),
                     'change_id' => $this->nz($cid),
                     'title'     => $this->nz($title),
+                    'actual_start_at_src' => $this->toJakartaTs($start),
                     'actual_end_at_src' => $this->toJakartaTs($end),
+                    'request_title' => $this->nz($rtitle),
+                    'problem_title' => $this->nz($ptitle),
+                    'change_title'  => $this->nz($ctitle),
                 ]);
             }
         }
@@ -110,8 +118,13 @@ class ParseUploadJob implements ShouldQueue
     {
         if (!$val) return null;
         try {
-            // Parse as Asia/Jakarta from source, then normalize to UTC for storage
-            return Carbon::parse($val, 'Asia/Jakarta')->setTimezone('UTC');
+            // Parse as Asia/Jakarta from source; in local dev keep Jakarta tz, in other envs normalize to UTC
+            $ts = Carbon::parse($val, 'Asia/Jakarta');
+            $env = config('app.env');
+            if (in_array($env, ['local', 'lokal'], true)) {
+                return $ts; // keep Asia/Jakarta in local/lokal
+            }
+            return $ts->setTimezone('UTC');
         } catch (\Throwable $e) { return null; }
     }
 
@@ -121,4 +134,3 @@ class ParseUploadJob implements ShouldQueue
         return ($s==='' || strtolower($s)==='null') ? null : $s;
     }
 }
-
