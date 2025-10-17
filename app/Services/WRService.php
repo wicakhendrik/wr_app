@@ -144,6 +144,7 @@ class WRService
 
         $sheet = $spread->getActiveSheet();
         $sheet->setTitle($start->isoFormat('MMMM'));
+        $sheet->getDefaultRowDimension()->setRowHeight(20);
         $this->applySignatureLabel($sheet, $signatureLabel);
         $profile = $this->profileLabels($user);
 
@@ -431,7 +432,7 @@ class WRService
     ): Spreadsheet {
         $spread = new Spreadsheet();
         $sheet  = $spread->getActiveSheet();
-        $sheet->setTitle($start->isoFormat('MMMM'));
+        
         $this->applySignatureLabel($sheet, $signatureLabel);
         $profile = $this->profileLabels($user);
 
@@ -455,7 +456,7 @@ class WRService
         $sheet->setCellValue('F243', $profile['project_supervisor_title']);
 
 
-        $sheet->getDefaultRowDimension()->setRowHeight(18);
+        $sheet->getDefaultRowDimension()->setRowHeight(20);
         $sheet->getColumnDimension('B')->setWidth(22);
         $sheet->getColumnDimension('C')->setWidth(6);
         $sheet->getColumnDimension('D')->setWidth(16);
@@ -919,7 +920,6 @@ class WRService
         }
     }
 }
-
 
 
 

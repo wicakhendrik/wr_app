@@ -1,0 +1,19 @@
+*** Begin Patch
+*** Update File: app/Services/WRService.php
+@@
+-                $sheet->setCellValue('E' . $row, $detailLines ? implode("\n", $detailLines) : null);
+-                $sheet->setCellValue('G' . $row, $outputLines ? implode("\n", $outputLines) : null);
++                // Add extra spacing between lines for better readability in Excel
++                $sheet->setCellValue('E' . $row, $detailLines ? implode("\n\n", $detailLines) : null);
++                $sheet->setCellValue('G' . $row, $outputLines ? implode("\n\n", $outputLines) : null);
+@@
+-                $sheet->getRowDimension($currentRow)->setRowHeight($slotIdx === 0 ? 85 : -1);
++                // Use auto row height on all rows to avoid clipping when content wraps
++                $sheet->getRowDimension($currentRow)->setRowHeight(-1);
+@@
+-                $sheet->setCellValue('E' . $currentRow, $detailLines ? implode("\n", $detailLines) : null);
+-                $sheet->setCellValue('G' . $currentRow, $outputLines ? implode("\n", $outputLines) : null);
++                // Add extra spacing between lines for better readability in Excel
++                $sheet->setCellValue('E' . $currentRow, $detailLines ? implode("\n\n", $detailLines) : null);
++                $sheet->setCellValue('G' . $currentRow, $outputLines ? implode("\n\n", $outputLines) : null);
+*** End Patch
