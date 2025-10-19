@@ -144,7 +144,6 @@ class WRService
 
         $sheet = $spread->getActiveSheet();
         $sheet->setTitle($start->isoFormat('MMMM'));
-        $sheet->getDefaultRowDimension()->setRowHeight(20);
         $this->applySignatureLabel($sheet, $signatureLabel);
         $profile = $this->profileLabels($user);
 
@@ -372,8 +371,22 @@ class WRService
                 }
 
                 foreach ($dayManuals as $activity) {
-                    $slot = $this->determineSlotIndexFromClock($activity->start_time, $slots);
-                    if ($slot !== $slotIdx) {
+                    $slotStart = $slots[$slotIdx][0];
+                    $slotEnd   = $slots[$slotIdx][1];
+                    $include   = false;
+
+                    if ($activity->start_time && $activity->end_time) {
+                        if ($this->timesOverlap($activity->start_time, $activity->end_time, $slotStart, $slotEnd)) {
+                            $include = true;
+                        }
+                    } else {
+                        $slot = $this->determineSlotIndexFromClock($activity->start_time, $slots);
+                        if ($slot === $slotIdx) {
+                            $include = true;
+                        }
+                    }
+
+                    if (!$include) {
                         continue;
                     }
 
@@ -432,7 +445,7 @@ class WRService
     ): Spreadsheet {
         $spread = new Spreadsheet();
         $sheet  = $spread->getActiveSheet();
-        
+        $sheet->setTitle($start->isoFormat('MMMM'));
         $this->applySignatureLabel($sheet, $signatureLabel);
         $profile = $this->profileLabels($user);
 
@@ -456,7 +469,7 @@ class WRService
         $sheet->setCellValue('F243', $profile['project_supervisor_title']);
 
 
-        $sheet->getDefaultRowDimension()->setRowHeight(20);
+        $sheet->getDefaultRowDimension()->setRowHeight(18);
         $sheet->getColumnDimension('B')->setWidth(22);
         $sheet->getColumnDimension('C')->setWidth(6);
         $sheet->getColumnDimension('D')->setWidth(16);
@@ -653,8 +666,22 @@ class WRService
                 }
 
                 foreach ($dayManuals as $activity) {
-                    $slot = $this->determineSlotIndexFromClock($activity->start_time, $slots);
-                    if ($slot !== $slotIdx) {
+                    $slotStart = $slots[$slotIdx][0];
+                    $slotEnd   = $slots[$slotIdx][1];
+                    $include   = false;
+
+                    if ($activity->start_time && $activity->end_time) {
+                        if ($this->timesOverlap($activity->start_time, $activity->end_time, $slotStart, $slotEnd)) {
+                            $include = true;
+                        }
+                    } else {
+                        $slot = $this->determineSlotIndexFromClock($activity->start_time, $slots);
+                        if ($slot === $slotIdx) {
+                            $include = true;
+                        }
+                    }
+
+                    if (!$include) {
                         continue;
                     }
 
@@ -920,6 +947,7 @@ class WRService
         }
     }
 }
+
 
 
 
